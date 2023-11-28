@@ -1,11 +1,10 @@
+import mlflow.pytorch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import mlflow
-import mlflow.pytorch
-from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
 
 # GPU 사용 가능 여부 확인 및 설정
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -23,6 +22,7 @@ trainloader = DataLoader(trainset, batch_size=64, shuffle=True)
 testset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 testloader = DataLoader(testset, batch_size=64, shuffle=False)
 
+mlflow.set_tracking_uri(uri="http://localhost:5001")
 mlflow.set_experiment('mnist_pytorch_experiment')
 
 # CNN 모델 정의
@@ -58,7 +58,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 # 모델 훈련 및 MLflow 로깅
-for epoch in range(10):
+for epoch in range(1):
     with mlflow.start_run(nested=True):  # 중첩 실행 시작
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
@@ -71,7 +71,7 @@ for epoch in range(10):
             running_loss += loss.item()
         epoch_loss = running_loss / len(trainloader)
         print(f'Epoch {epoch + 1}, Loss: {epoch_loss}')
-        
+
         # 각 에포크에 대한 파라미터 및 메트릭 로깅
         mlflow.log_param('epoch', epoch)
         mlflow.log_metric('loss', epoch_loss)
@@ -90,10 +90,9 @@ with mlflow.start_run():
 
     accuracy = 100 * correct // total
     print(f'Accuracy of the network on the 10000 test images: {accuracy} %')
-    
+
     # 정확도 로깅
     mlflow.log_metric('accuracy', accuracy)
 
     # 모델 저장 및 로깅
-    mlflow.pytorch.log_model(net, "model")
-
+    mlflow.pytorch.log_model(net, "model", registered_model_name="mnist_pytorch_model")

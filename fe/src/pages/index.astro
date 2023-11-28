@@ -1,0 +1,56 @@
+<html>
+<head>
+    <title>MNIST Classifier</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding: 20px;
+        }
+        /* 기타 스타일 */
+        .image-preview {
+            margin-top: 20px;
+            max-width: 200px; /* 이미지 미리보기 최대 크기 설정 */
+            max-height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>MNIST Image Classifier</h1>
+    <form id="upload-form">
+        <input type="file" id="image-input" name="file" accept="image/*" required>
+        <button type="submit">Classify Image</button>
+    </form>
+    <img id="image-preview" class="image-preview" />
+    <h2 id="result"></h2>
+
+    <script>
+        document.getElementById('image-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('image-preview');
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('upload-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            try {
+                const response = await fetch('http://localhost:8000/predict/', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await response.json();
+                document.getElementById('result').textContent = 'Predicted Digit: ' + data.prediction;
+            } catch (e) {
+                document.getElementById('result').textContent = 'Failed prediction';
+                alert(e.message);
+            }
+        });
+    </script>
+</body>
+</html>
