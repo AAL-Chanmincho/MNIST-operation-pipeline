@@ -8,7 +8,7 @@
 
 ## Quick Start
                             
-### Pyenv setup
+### Pyenv setup(local environment)
 - [Pyenv installation guide documentation](https://github.com/pyenv/pyenv#installation)
 
 ```bash
@@ -17,20 +17,23 @@ $ pyenv virtualenv 3.11.5 MNIST-operation-pipeline
 $ pyenv local MNIST-operation-pipeline  
 ```
 
-### Install dependencies
+### Run All system
 ```bash
-$ pip install -r requirements.txt
+docker compose up
 ```
 
 
-
-### MLFlow install
-
-             
+### Architecture
+![img.png](./docs/images/img.png)
 
 
+<br><br>
+
+## The points you should know
+
+- At first, when you run the project, it retries for 1200 seconds until a model is created in the backend because there is no registered model (I want to minimize the work), so at first you have to wait without any logs until the MNIST model is trained and saved in mlflow. (You can refer to app.py on the backend)
 
 
 ## MNIST datasets
 - https://www.kaggle.com/datasets/scolianni/mnistasjpg/
-- 
+
