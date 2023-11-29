@@ -19,7 +19,7 @@ $ pyenv local MNIST-operation-pipeline
 
 ### Run All system
 ```bash
-docker compose up
+docker compose up # flags are up to you.
 ```
 
 
