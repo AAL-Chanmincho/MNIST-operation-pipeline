@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mlflow-server:
+    build:
+      context: ./mlflow-server
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./mlflow-data:/mlflow/mlruns
+
+  ml:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    depends_on:
+      - mlflow-server
+    environment:
+      - MLFLOW_SERVER_URL=http://mlflow-server:5001
+    volumes:
+      - ./ml/data:/data
+
+  be:
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+    depends_on:
+      - mlflow-server
+      - ml
+    ports:
+      - "8000:8000"
+    environment:
+      - MLFLOW_SERVER_URL=http://mlflow-server:5001
+
+  fe:
+    build:
+      context: ./fe
+      dockerfile: Dockerfile
+    depends_on:
+      - be
+      - mlflow-server
+      - ml
+    ports:
+      - "4321:4321"
+
+
+
+volumes:
+  mlflow-data:

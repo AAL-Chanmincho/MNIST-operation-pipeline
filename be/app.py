@@ -2,7 +2,9 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import io
+import os
 from PIL import Image
+import time
 import torch
 from torchvision import transforms
 import mlflow.pytorch
@@ -18,10 +20,29 @@ app.add_middleware(
     allow_headers=["*"],  # 모든 HTTP 헤더 허용
 )
 
-# MLflow를 사용하여 모델 로드
+MLFLOW_SERVER_URL = os.environ.get('MLFLOW_SERVER_URL', 'http://0.0.0.0:5001')
 model_uri = "models:/mnist_pytorch_model/latest"
-model = mlflow.pytorch.load_model(model_uri)
-model.eval()
+
+
+# 모델 로딩을 위한 재시도 함수
+def load_model_with_retry(retry_count=60, wait_seconds=20):
+    for _ in range(retry_count):
+        try:
+            mlflow.set_tracking_uri(uri=MLFLOW_SERVER_URL)
+            model = mlflow.pytorch.load_model(model_uri)
+            model.eval()
+            return model
+        except Exception as e:
+            print(f"모델 로딩 실패: {e}, 재시도 중...")
+            time.sleep(wait_seconds)
+    raise Exception("모델 로딩에 실패했습니다.")
+
+# FastAPI 애플리케이션 시작 시 모델 로드
+@app.on_event("startup")
+def startup_event():
+    global model
+    model = load_model_with_retry()
+
 
 # 이미지 전처리 함수
 def transform_image(image_bytes):

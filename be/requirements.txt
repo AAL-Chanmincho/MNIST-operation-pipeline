@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+Pillow
+torch
+torchvision
+mlflow
+pydantic==1.10.7
