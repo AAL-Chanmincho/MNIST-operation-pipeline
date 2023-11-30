@@ -7,19 +7,16 @@
                                 
 
 ## Quick Start
-                            
-### Pyenv setup(local environment)
-- [Pyenv installation guide documentation](https://github.com/pyenv/pyenv#installation)
 
-```bash
-$ pyenv install 3.11.5
-$ pyenv virtualenv 3.11.5 MNIST-operation-pipeline
-$ pyenv local MNIST-operation-pipeline  
-```
 
-### Run All system
+> For documentation on setting up and running Docker Compose, see [Airflow Docs](https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html).
+
+## Run Docker
 ```bash
-docker compose up # flags are up to you.
+# Make sure to initialize Docker settings based on the above airflow documentation
+docker compose build
+docker compose airflow-init
+docker compose up
 ```
 
 
@@ -31,7 +28,10 @@ docker compose up # flags are up to you.
 
 ## The points you should know
 
-- At first, when you run the project, it retries for 1200 seconds until a model is created in the backend because there is no registered model (I want to minimize the work), so at first you have to wait without any logs until the MNIST model is trained and saved in mlflow. (You can refer to app.py on the backend)
+- At first, when you run the project, it retries for 1200 seconds until a model is created in the backend because there is no registered model (I want to minimize the work)
+- So once airflow is running, connect to webserver (localhost:8080) and start the pipeline if it hasn't already been started. 
+- Once the ML model is trained by the pipeline automation, it should work fine and run the 
+  - You can check the automated MNIST application through FE (localhost:4321).
 
 
 ## MNIST datasets
