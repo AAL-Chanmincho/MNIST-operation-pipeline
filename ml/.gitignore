@@ -1,0 +1,5 @@
+logs/
+data/
+config/
+plugins/
+mlruns/
