@@ -44,10 +44,8 @@ BE
 
 ## The points you should know
 
-- At first, when you run the project, it retries for 1200 seconds until a model is created in the backend because there is no registered model (I want to minimize the work)
-- So once airflow is running, connect to webserver (localhost:8080) and start the pipeline if it hasn't already been started. 
-- Once the ML model is trained by the pipeline automation, it should work fine and run the 
-  - You can check the automated MNIST application through FE (localhost:4321).
+- At first, when you run the project, it retries for 1200 seconds until a model is created in the backend because there is no registered model. so once airflow is running, connect to webserver (localhost:8080) and start the pipeline if it hasn't already been started. 
+- Once the ML model is trained by the pipeline automation, it should work fine and run. You can check the automated MNIST application through FE (localhost:4321).
 
 
 ## MNIST datasets
