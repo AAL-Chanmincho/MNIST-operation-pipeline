@@ -21,9 +21,9 @@ docker compose up
 ## Process of what you have to do first
 1. go into Airflow web UI(id: airflow, pw: airflow)
  - Docker may take a while to load initially, so it may take a while to access it.
-2. run mnist-gpu task once in the airflow
-3. once the training completed, move FE site
-4. download one mnist data image and predict 
+2. run mnist-gpu task once in the Airflow
+3. Once the task in Airflow completed, move FE site
+4. download one mnist data image in the internet and predict 
 5. that's all!
 
 
