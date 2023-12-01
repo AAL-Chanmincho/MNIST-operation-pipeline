@@ -22,6 +22,22 @@ docker compose up
 
 ### Architecture
 ![img.png](./docs/images/img.png)
+     
+#### Links
+
+MLFlow UI
+- localhost:5001
+
+Airflow web UI
+- localhost:8080
+
+FE
+- localhost:4321 
+
+BE
+- localhost:8000
+
+
 
 
 <br><br>
