@@ -205,9 +205,6 @@ services:
       # Required to handle warm shutdown of the celery workers properly
       # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
-      S3_BUCKET_NAME: my-bucket
-      AWS_ACCESS_KEY_ID: myaccesskey
-      AWS_SECRET_ACCESS_KEY: mysecretkey
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
@@ -352,9 +349,6 @@ services:
       - "8000:8000"
     environment:
       - MLFLOW_SERVER_URL=http://mlflow-server:5001
-      - S3_BUCKET_NAME
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
 
   fe:
     build:

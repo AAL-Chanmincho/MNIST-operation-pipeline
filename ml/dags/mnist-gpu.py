@@ -105,9 +105,9 @@ def data_preparation(**context):
     from torch.utils.data import DataLoader
     from torchvision import datasets, transforms
 
-    bucket_name = os.getenv('S3_BUCKET_NAME')
-    access_key = os.getenv('AWS_ACCESS_KEY_ID')
-    secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+    bucket_name = os.environ.get('S3_BUCKET_NAME')
+    access_key = os.environ.get('AWS_ACCESS_KEY_ID')
+    secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
     image_folder = 'images'
     label_file = 'mnlist_label.json'
 
