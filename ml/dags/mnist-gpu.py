@@ -1,6 +1,12 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
+import boto3
+from torch.utils.data import Dataset
+import json
+import os
+from PIL import Image
+import redis
 
 # DAG의 기본 인자 설정
 default_args = {
@@ -13,6 +19,30 @@ default_args = {
     'start_date': datetime(2022, 12, 30),
     'retry_delay': timedelta(minutes=5),
 }
+
+redis_host = "redis"
+redis_port = 6379
+redis_password = ""
+
+
+class CustomImageDataset(Dataset):
+    def __init__(self, annotations_file, img_dir, transform=None):
+        with open(annotations_file, 'r') as f:
+            self.img_labels = json.load(f)
+        self.img_dir = img_dir
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.img_labels)
+
+    def __getitem__(self, idx):
+        img_info = self.img_labels[idx]
+        img_path = os.path.join(self.img_dir, img_info['filename'])
+        image = Image.open(img_path).convert('L')
+        label = img_info['label']
+        if self.transform:
+            image = self.transform(image)
+        return image, label
 
 
 def create_model(**kwargs):
@@ -51,25 +81,81 @@ def create_model(**kwargs):
     return net
 
 
-def data_preparation():
+def download_files_from_s3(bucket_name, s3_folder, local_dir, access_key, secret_key):
+    s3_client = boto3.client('s3', aws_access_key_id=access_key, aws_secret_access_key=secret_key)
+    objects = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=s3_folder).get('Contents', [])
+    print(objects)
+
+    if not objects:
+        print("No files found in S3 bucket.")
+        return False
+
+    for obj in objects:
+        if not os.path.exists(local_dir):
+            os.makedirs(local_dir)
+        path, filename = os.path.split(obj['Key'])
+        local_file_path = os.path.join(local_dir, filename)
+        s3_client.download_file(bucket_name, obj['Key'], local_file_path)
+
+    return True
+
+
+def data_preparation(**context):
     import torch
     from torch.utils.data import DataLoader
     from torchvision import datasets, transforms
 
-    # 데이터셋에 적용할 변환 정의
+    bucket_name = os.getenv('S3_BUCKET_NAME')
+    access_key = os.getenv('AWS_ACCESS_KEY_ID')
+    secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+    image_folder = 'images'
+    label_file = 'mnlist_label.json'
+
+    local_image_dir = '/opt/airflow/data/images'
+    local_label_file_dir = '/opt/airflow/data'
+
+    r = redis.StrictRedis(host=redis_host, port=redis_port, password=redis_password, decode_responses=True)
+    run_number = r.get('run_number')
+    if run_number is None:
+        run_number = 0
+    else:
+        run_number = int(run_number)
+
     transform = transforms.Compose([
+        transforms.Resize((28, 28)),
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
 
-    trainset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    trainloader = DataLoader(trainset, batch_size=64, shuffle=True)
+    if run_number == 0:
+        print("Load default train data")
+        trainset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    else:
+        # S3에서 이미지 및 레이블 파일 다운로드
+        print("Download Train data from S3")
+        images_downloaded = download_files_from_s3(bucket_name, image_folder, local_image_dir, access_key, secret_key)
+        labels_downloaded = download_files_from_s3(bucket_name, label_file, local_label_file_dir, access_key,
+                                                   secret_key)
 
+        if images_downloaded and labels_downloaded:
+            print("Create Custom Data Set")
+            trainset = CustomImageDataset(
+                annotations_file=f"{local_label_file_dir}/{label_file}",
+                img_dir=local_image_dir,
+                transform=transform
+            )
+        else:
+            print("Using local MNIST dataset as fallback.")
+            trainset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+
+    trainloader = DataLoader(trainset, batch_size=64, shuffle=True)
     testset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
     testloader = DataLoader(testset, batch_size=64, shuffle=False)
 
     torch.save(trainloader, 'trainloader.pth')
     torch.save(testloader, 'testloader.pth')
+
+    r.set('run_number', run_number+1)
 
     return {'trainloader_path': 'trainloader.pth', 'testloader_path': 'testloader.pth'}
 
@@ -90,9 +176,9 @@ def train_save_model(**context):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 
-    for epoch in range(1):
+    for epoch in range(3):
         with mlflow.start_run(nested=True):  # 중첩 실행 시작
             running_loss = 0.0
             for i, data in enumerate(trainloader, 0):
@@ -136,7 +222,7 @@ with DAG(
         'mnist_pytorch_training',
         default_args=default_args,
         description='MNIST training with PyTorch and MLflow',
-        schedule_interval=timedelta(days=1),
+        schedule_interval=timedelta(minutes=30),
         catchup=False
 ) as dag:
     import mlflow
@@ -151,12 +237,14 @@ with DAG(
         task_id='data_preparation',
         python_callable=data_preparation,
         dag=dag,
+        provide_context=True
     )
 
     train_and_save_model_job = PythonOperator(
         task_id='train_save_model',
         python_callable=train_save_model,
         dag=dag,
+        provide_context=True
     )
 
     data_preparation >> train_and_save_model_job

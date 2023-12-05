@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +10,7 @@ import time
 import torch
 from torchvision import transforms
 import mlflow.pytorch
+import boto3
 
 app = FastAPI()
 
@@ -37,6 +40,7 @@ def load_model_with_retry(retry_count=60, wait_seconds=20):
             time.sleep(wait_seconds)
     raise Exception("모델 로딩에 실패했습니다.")
 
+
 # FastAPI 애플리케이션 시작 시 모델 로드
 @app.on_event("startup")
 def startup_event():
@@ -55,6 +59,26 @@ def transform_image(image_bytes):
     image = Image.open(io.BytesIO(image_bytes))
     return transform(image).unsqueeze(0)
 
+
+def save_image_to_s3(image_bytes, filename, bucket_name, access_key, secret_key):
+    # 클라이언트 생성
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key
+    )
+
+    # 파일 이름 생성 (현재 시간을 포함하여 고유하게 만듬)
+    image_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
+
+    # S3 버킷에 이미지 저장
+    try:
+        s3_client.put_object(Body=image_bytes, Bucket=bucket_name, Key=f"images/{image_name}")
+        print(f"Image {image_name} saved to S3 bucket {bucket_name}")
+    except Exception as e:
+        print(f"Error saving image to S3: {e}")
+
+
 @app.post("/predict/")
 async def predict(file: UploadFile = File(...)):
     # 이미지 받아오기
@@ -63,7 +87,13 @@ async def predict(file: UploadFile = File(...)):
     # 이미지 전처리 및 예측
     tensor = transform_image(image_bytes)
     outputs = model(tensor)
-    _, predicted = torch.max(outputs.data, 1)
+    max_values, predicted = torch.max(outputs.data, 1)
+    print(outputs.data)
+    bucket_name = os.getenv('S3_BUCKET_NAME')
+    access_key = os.getenv('AWS_ACCESS_KEY_ID')
+    secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+    if max_values.item() < 0:
+        save_image_to_s3(image_bytes, file.filename, bucket_name, access_key, secret_key)
     prediction = predicted[0].item()
 
     # 결과 반환

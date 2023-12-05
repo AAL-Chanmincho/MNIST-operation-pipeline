@@ -20,7 +20,7 @@
 #
 # WARNING: This configuration is for local development. Do not use it in a production deployment.
 #
-# This configuration supports basic configuration using environment variables or an .env file
+# This configuration supports basic configuration using environment variables or an .env.example file
 # The following variables are supported:
 #
 # AIRFLOW_IMAGE_NAME           - Docker image name used to run Airflow.
@@ -121,6 +121,15 @@ services:
       start_period: 5s
     restart: always
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: 'postgresql://airflow:airflow@postgres/airflow'
+    ports:
+      - '9187:9187'
+    depends_on:
+      - postgres
+
   redis:
     image: redis:latest
     expose:
@@ -132,6 +141,13 @@ services:
       retries: 50
       start_period: 30s
     restart: always
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    ports:
+      - '9121:9121'
+    depends_on:
+      - redis
 
   airflow-webserver:
     <<: *airflow-common
@@ -149,6 +165,13 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+
+  airflow-exporter:
+    image: bitnami/airflow-exporter:latest
+    ports:
+      - '9112:9112'
+    depends_on:
+      - airflow-webserver
 
   airflow-scheduler:
     <<: *airflow-common
@@ -182,6 +205,9 @@ services:
       # Required to handle warm shutdown of the celery workers properly
       # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
+      S3_BUCKET_NAME: my-bucket
+      AWS_ACCESS_KEY_ID: myaccesskey
+      AWS_SECRET_ACCESS_KEY: mysecretkey
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
@@ -326,6 +352,9 @@ services:
       - "8000:8000"
     environment:
       - MLFLOW_SERVER_URL=http://mlflow-server:5001
+      - S3_BUCKET_NAME
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
 
   fe:
     build:
@@ -336,7 +365,31 @@ services:
       - mlflow-server
     ports:
       - "4321:4321"
+  prometheus:
+    build:
+      context: ./prometheus
+      dockerfile: Dockerfile
+    depends_on:
+      - airflow-exporter
+      - postgres-exporter
+      - redis-exporter
+    ports:
+      - '9090:9090'
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "5002:3000"
+    depends_on:
+      - prometheus
+    restart: always
 
 volumes:
   postgres-db-volume:
   mlflow-data:
+  grafana-data:
