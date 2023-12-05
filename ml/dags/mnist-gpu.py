@@ -108,6 +108,9 @@ def data_preparation(**context):
     bucket_name = os.environ.get('S3_BUCKET_NAME')
     access_key = os.environ.get('AWS_ACCESS_KEY_ID')
     secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    print(bucket_name)
+    print(access_key)
+    print(secret_key)
     image_folder = 'images'
     label_file = 'mnlist_label.json'
 

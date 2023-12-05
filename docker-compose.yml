@@ -73,6 +73,9 @@ x-airflow-common:
     # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+    S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/ml/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/ml/logs:/opt/airflow/logs
@@ -349,6 +352,9 @@ services:
       - "8000:8000"
     environment:
       - MLFLOW_SERVER_URL=http://mlflow-server:5001
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 
   fe:
     build:
