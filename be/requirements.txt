@@ -6,3 +6,5 @@ torch
 torchvision
 mlflow
 pydantic==1.10.7
+boto3
+datetime
